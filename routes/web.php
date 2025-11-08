@@ -30,4 +30,7 @@ Route::get('/invoice/{id}/print', function ($id) {
     return view('invoice.print', compact('sale', 'saleItems'));
 })->name('invoice.print');
 
+Route::get('/customer/{customer}/statements', [App\Http\Controllers\CustomerStatementController::class, 'generateStatement'])
+    ->name('customer.statements');
+
 Route::redirect('/laravel/login', '/login')->name('login');

@@ -78,6 +78,60 @@ class CustomerResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('statements')
+                    ->label('Statements')
+                    ->icon('heroicon-o-document-chart-bar')
+                    ->color('info')
+                    ->form([
+                        Forms\Components\Select::make('report_type')
+                            ->label('Report Type')
+                            ->required()
+                            ->options([
+                                'sales' => 'Sales Records',
+                                'credits' => 'Credit Records',
+                                'both' => 'Sales & Credits',
+                            ])
+                            ->default('sales')
+                            ->native(false),
+                        Forms\Components\DatePicker::make('start_date')
+                            ->label('Start Date')
+                            ->required()
+                            ->default(now()->subMonth())
+                            ->native(false)
+                            ->maxDate(now()),
+                        Forms\Components\DatePicker::make('end_date')
+                            ->label('End Date')
+                            ->required()
+                            ->default(now())
+                            ->native(false)
+                            ->maxDate(now())
+                            ->after('start_date')
+                            ->rule('after_or_equal:start_date'),
+                        Forms\Components\Select::make('export_format')
+                            ->label('Export Format')
+                            ->required()
+                            ->options([
+                                'pdf' => 'PDF Report',
+                                'csv' => 'CSV Spreadsheet',
+                            ])
+                            ->default('pdf')
+                            ->native(false),
+                    ])
+                    ->action(function (array $data, $record) {
+                        $url = route('customer.statements', [
+                            'customer' => $record->id,
+                            'report_type' => $data['report_type'],
+                            'start_date' => $data['start_date'],
+                            'end_date' => $data['end_date'],
+                            'format' => $data['export_format'],
+                        ]);
+
+                        // Use JavaScript to open the URL in a new tab for download
+                        return redirect()->to($url);
+                    })
+                    ->modalHeading(fn($record) => 'Generate Statement for ' . $record->name)
+                    ->modalSubmitActionLabel('Generate Report')
+                    ->modalWidth(MaxWidth::Medium),
                 Tables\Actions\EditAction::make()->slideOver()->modalWidth(MaxWidth::Medium),
                 Tables\Actions\DeleteAction::make()
                     ->modalDescription(function ($record) {
