@@ -19,7 +19,8 @@ class Credit extends Model
         'status',
         'balance',
         'user_id',
-        'order_number'
+        'order_number',
+        'description'
     ];
 
     protected static function boot()
@@ -59,7 +60,7 @@ class Credit extends Model
     {
         return $this->sales()
             ->where('payment_status', 'credit')
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->whereNull('paid_amount')
                     ->orWhereRaw('paid_amount < total_amount');
             });

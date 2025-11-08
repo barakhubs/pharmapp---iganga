@@ -16,10 +16,12 @@ class ManageCredits extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()
+            // Action for paying existing credits
+            Actions\CreateAction::make('pay_credit')
                 ->label('Pay Credit')
                 ->slideOver()
                 ->modalWidth(MaxWidth::Medium)
+                ->fillForm(['form_mode' => 'pay_credit'])
                 ->mutateFormDataUsing(function (array $data): array {
                     // Get all credit IDs from the form
                     $creditIds = json_decode($data['credit_ids'] ?? '[]', true);
@@ -74,11 +76,29 @@ class ManageCredits extends ManageRecords
                     $data['status'] = 'paid';
 
                     return $data;
+                }),
+
+            // Action for adding new standalone credits
+            Actions\CreateAction::make('add_credit')
+                ->label('Add New Credit')
+                ->slideOver()
+                ->modalWidth(MaxWidth::Medium)
+                ->color('success')
+                ->icon('heroicon-o-plus-circle')
+                ->fillForm(['form_mode' => 'add_credit'])
+                ->mutateFormDataUsing(function (array $data): array {
+                    // For new credits, set up the data structure
+                    $creditAmount = floatval($data['amount_paid']); // This is the credit amount for new credits
+
+                    $data['order_number'] = 'MANUAL-CREDIT-' . now()->format('YmdHis');
+                    $data['amount_owed'] = $creditAmount;
+                    $data['amount_paid'] = 0; // New credits start with 0 paid
+                    $data['balance'] = $creditAmount;
+                    $data['status'] = 'unpaid';
+
+                    return $data;
                 })
-                ->after(function (array $data) {
-                    // Payment processing is now handled in mutateFormDataUsing
-                    // This creates a payment record for tracking purposes
-                })
+                ->successNotificationTitle('Credit added successfully')
         ];
     }
 }

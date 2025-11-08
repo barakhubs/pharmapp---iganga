@@ -29,21 +29,35 @@ class CreditResource extends Resource
     {
         return $form
             ->schema([
+                // Mode selector - hidden field to determine form behavior
+                Forms\Components\Hidden::make('form_mode')
+                    ->default('pay_credit'),
+
+                // Customer selection for paying existing credits
                 Forms\Components\Select::make('customer_id')
                     ->required()
                     ->label('Select Customer')
-                    ->options(
-                        Customer::whereHas('credits')
-                            ->pluck('name', 'id')
-                    )
+                    ->options(function (callable $get) {
+                        $mode = $get('form_mode');
+                        if ($mode === 'add_credit') {
+                            // For new credits, show all customers
+                            return Customer::pluck('name', 'id');
+                        } else {
+                            // For paying credits, show only customers with existing credits
+                            return Customer::whereHas('credits')
+                                ->pluck('name', 'id');
+                        }
+                    })
                     ->preload()
                     ->searchable()
                     ->columnSpanFull()
                     ->native(false)
                     ->reactive()
                     ->afterStateUpdated(
-                        function ($state, callable $set) {
-                            if ($state) {
+                        function ($state, callable $set, callable $get) {
+                            $mode = $get('form_mode');
+
+                            if ($state && $mode === 'pay_credit') {
                                 // Get all credits for this customer with remaining balance
                                 $customerCredits = Credit::where('customer_id', $state)
                                     ->where('balance', '>', 0)
@@ -62,27 +76,39 @@ class CreditResource extends Resource
                         }
                     ),
 
+                // For paying existing credits - show current balance
                 Forms\Components\TextInput::make('balance')
                     ->readOnly()
                     ->prefix('UGX')
                     ->stripCharacters(',')
                     ->mask(RawJs::make('$money($input)'))
-                    ->required()
+                    ->label('Current Balance')
+                    ->visible(fn(callable $get) => $get('form_mode') === 'pay_credit')
                     ->columns(1),
 
+                // Amount field - behaves differently for each mode
                 Forms\Components\TextInput::make('amount_paid')
                     ->required()
-                    ->label('Amount Paid')
+                    ->label(fn(callable $get) => $get('form_mode') === 'add_credit' ? 'Credit Amount' : 'Amount Paid')
                     ->prefix('UGX')
                     ->stripCharacters(',')
                     ->numeric()
                     ->reactive()
                     ->minValue(0)
-                    ->maxValue(fn($get) => $get('balance'))
+                    ->maxValue(fn($get) => $get('form_mode') === 'pay_credit' ? $get('balance') : null)
                     ->afterStateUpdated(
                         fn($state, callable $set, callable $get) =>
-                        $state > $get('balance') ? $set('amount_paid', $get('balance')) : null
+                        $get('form_mode') === 'pay_credit' && $state > $get('balance') ? $set('amount_paid', $get('balance')) : null
                     ),
+
+                // Description field for new credits
+                Forms\Components\Textarea::make('description')
+                    ->label('Credit Description/Reason')
+                    ->placeholder('Enter reason for this credit (e.g., Previous balance, Store credit, etc.)')
+                    ->visible(fn(callable $get) => $get('form_mode') === 'add_credit')
+                    ->columnSpanFull(),
+
+                // Hidden fields
                 Forms\Components\Hidden::make('credit_ids'),
             ]);
     }
@@ -116,6 +142,15 @@ class CreditResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('customer.name')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('order_number')
+                    ->label('Order #')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('description')
+                    ->limit(50)
+                    ->tooltip(fn($record) => $record->description)
+                    ->placeholder('No description')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('amount_owed')
                     ->money('UGX ')
                     ->getStateUsing(fn($record) => $record->amount_owed + $record->amount_paid)
