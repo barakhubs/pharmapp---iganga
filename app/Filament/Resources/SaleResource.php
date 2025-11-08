@@ -69,20 +69,27 @@ class SaleResource extends Resource
                         Forms\Components\Select::make('medicine_id')
                             ->label('Select Medicine')
                             ->required()
-                            ->searchable()
+                            ->searchable(['name', 'batch_no', 'description'])
                             ->preload()
                             ->options(function (callable $get) {
                                 return Medicine::whereNotNull('stock_quantity')
                                     ->where('stock_quantity', '>', 0)
                                     ->get()
-                                    ->pluck('name', 'id')
+                                    ->mapWithKeys(function ($medicine) {
+                                        return [
+                                            $medicine->id => $medicine->name . ' (Stock: ' . $medicine->stock_quantity . ' ' . ($medicine->measurement_unit ?? 'units') . ') - Selling: UGX ' . number_format($medicine->selling_price, 2) . ' | Purchase: UGX ' . number_format($medicine->buying_price, 2)
+                                        ];
+                                    })
                                     ->toArray();
                             })
+                            ->placeholder('Search by medicine name, batch number, or description...')
+                            ->helperText('Only medicines with available stock are shown')
                             ->live()
                             ->afterStateUpdated(function ($state, Set $set, $get) {
                                 if ($state) {
                                     $medicine = Medicine::find($state);
                                     $set('price', number_format($medicine->selling_price, 2));
+                                    $set('buying_price', number_format($medicine->buying_price, 2));
                                     $total = $medicine->selling_price * $get('quantity');
                                     $set('total', number_format($total, 2));
                                     $set('medicine', $medicine);
@@ -124,10 +131,16 @@ class SaleResource extends Resource
                                         $set('total', number_format($total, 2));
                                     }),
 
+                                Forms\Components\TextInput::make('buying_price')
+                                    ->prefix('UGX ')
+                                    ->mask(RawJs::make('$money($input)'))
+                                    ->label('Purchase Price')
+                                    ->readOnly()
+                                    ->helperText('Original buying price of this medicine'),
                                 Forms\Components\TextInput::make('price')
                                     ->prefix('UGX ')
                                     ->mask(RawJs::make('$money($input)'))
-                                    ->label('Unit Price')
+                                    ->label('Unit Selling Price')
                                     ->dehydrated(true), // Ensure inclusion in the data
 
                             ])->columns(2),

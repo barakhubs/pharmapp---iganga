@@ -109,8 +109,7 @@ class MedicineResource extends Resource
                     ->label('Selling Price')
                     ->prefix('UGX')
                     ->mask(RawJs::make('$money($input)'))
-                    ->stripCharacters(',')
-                    ->required(),
+                    ->stripCharacters(','),
                 Forms\Components\Select::make('measurement_unit')
                     ->label('Measurement Unit')
                     ->options([

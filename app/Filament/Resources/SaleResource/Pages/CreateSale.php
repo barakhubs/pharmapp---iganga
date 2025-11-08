@@ -63,8 +63,6 @@ class CreateSale extends CreateRecord
                 'total_amount' => $total_cost,
             ]);
 
-            Log::info("Sale created with total cost: " . $total_cost);
-
             return $sale;
         });
     }

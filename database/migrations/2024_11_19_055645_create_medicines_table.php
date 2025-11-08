@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('branch_id')->constrained()->CascadeOnDelete();
             $table->string('description')->nullable();
             $table->string('buying_price');
-            $table->string('selling_price');
+            $table->string('selling_price')->nullable();
             $table->string('stock_quantity');
             $table->string('expiry_date')->nullable();
             $table->string('batch_no')->nullable();
